@@ -8,49 +8,39 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum PaymentMethod {
-  CARD
-  CASH
-  BANK_TRANSFER
-  DIGITAL_WALLET
-}
-
 model Order {
-  id              Int         @id @default(autoincrement())
-  contactName     String      @db.VarChar(100)
-  contactEmail    String      @db.VarChar(255)
-  contactPhone    String      @db.VarChar(20)
-  country         String      @db.VarChar(100)
-  city            String      @db.VarChar(100)
-  zipCode         String      @db.VarChar(20)
-  deliveryAddress String      @db.VarChar(255)
-  notes           String?      @db.VarChar(200)
-  fee             Decimal     @db.Decimal(10, 2)
-  subtotal        Decimal     @db.Decimal(10, 2)  
-  totalPrice      Decimal     @db.Decimal(10, 2)
+  id              Int           @id @default(autoincrement())
+  contactName     String        @db.VarChar(100)
+  contactEmail    String        @db.VarChar(255)
+  contactPhone    String        @db.VarChar(20)
+  country         String        @db.VarChar(100)
+  city            String        @db.VarChar(100)
+  zipCode         String        @db.VarChar(20)
+  deliveryAddress String        @db.VarChar(255)
+  notes           String?       @db.VarChar(200)
+  totalPrice      Decimal       @db.Decimal(10, 2)
   paymentMethod   PaymentMethod @default(CARD)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   discountId      Int?
-  isActive        Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  discount Discount? @relation(fields: [discountId], references: [id], onDelete: Restrict)
-
-  items OrderItem[]
+  fee             Decimal       @db.Decimal(10, 2)
+  subtotal        Decimal       @db.Decimal(10, 2)
+  items           OrderItem[]
+  discount        Discount?     @relation(fields: [discountId], references: [id], onDelete: Restrict)
 
   @@map("orders")
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique @db.VarChar(100)
-  description String   @db.VarChar(255)
-  price       Decimal  @db.Decimal(10, 2)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  orderItems OrderItem[]
+  id          Int         @id @default(autoincrement())
+  name        String      @unique @db.VarChar(100)
+  description String      @db.VarChar(255)
+  price       Decimal     @db.Decimal(10, 2)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
 
   @@map("products")
 }
@@ -60,27 +50,32 @@ model OrderItem {
   orderId   Int
   productId Int
   quantity  Int
-  price     Decimal  @db.Decimal(10, 2) // Price at the time of order
+  price     Decimal  @db.Decimal(10, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
 
   @@unique([orderId, productId])
   @@map("order_items")
 }
 
 model Discount {
-  id         Int      @id @default(autoincrement())
-  code       String   @unique @db.VarChar(100)
-  discount   Decimal  @db.Decimal(10, 2)
+  id         Int       @id @default(autoincrement())
+  code       String    @unique @db.VarChar(100)
+  discount   Decimal   @db.Decimal(10, 2)
   validUntil DateTime? @db.Date
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  orders Order[]
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  orders     Order[]
 
   @@map("discounts")
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  BANK_TRANSFER
+  DIGITAL_WALLET
 }
