@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { User, ShoppingCart, CreditCard, CheckCircle, Plus, Minus, ArrowRight, ArrowLeft } from "lucide-react"
-import { OrderService, CreateOrderCommand } from "./order-command"
+import { OrderService, CreateOrderCommand, CommandInvoker } from "./order-command"
 
 // --- Estado y Tipos ---
 interface OrderItem {
@@ -107,8 +107,9 @@ export function CreateOrderWizard() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [paymentMethod, setPaymentMethod] = useState("")
   const [discountCode, setDiscountCode] = useState("") // Nuevo estado para el código de descuento
-    const [orderCreated, setOrderCreated] = useState(false)
+  const [orderCreated, setOrderCreated] = useState(false)
   const orderService = useMemo(() => new OrderService(), [])
+  const invoker = useMemo(() => new CommandInvoker(), [])
 
   const handleCreateOrder = () => {
     const orderData = {
@@ -119,7 +120,7 @@ export function CreateOrderWizard() {
       createdAt: new Date().toISOString(),
     }
     const command = new CreateOrderCommand(orderService, orderData)
-    command.execute()
+    invoker.run(command) 
     setOrderCreated(true)
     setCurrentStep(4)
   }

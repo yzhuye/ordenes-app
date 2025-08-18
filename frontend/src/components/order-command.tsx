@@ -3,15 +3,12 @@ export interface Command {
   execute(): void
 }
 
-// Receiver: Servicio que realiza la acción real
 export class OrderService {
   createOrder(orderData: any) {
-    // Aquí podrías hacer una petición a la API, guardar en localStorage, etc.
     console.log("Orden creada:", orderData)
   }
 }
 
-// Concrete Command
 export class CreateOrderCommand implements Command {
   private receiver: OrderService
   private orderData: any
@@ -23,5 +20,18 @@ export class CreateOrderCommand implements Command {
 
   execute() {
     this.receiver.createOrder(this.orderData)
+  }
+}
+
+export class CommandInvoker {
+  private history: Command[] = []
+
+  run(command: Command) {
+    command.execute()
+    this.history.push(command)
+  }
+
+  getHistory() {
+    return this.history
   }
 }
