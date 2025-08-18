@@ -7,9 +7,13 @@ export class OrderService {
   createOrder(orderData: any) {
     console.log("Orden creada:", orderData)
   }
+
+  cancelOrder(orderId: string) {
+    console.log(`Orden ${orderId} cancelada`)
+  }
 }
 
-export class CreateOrderCommand implements Command {
+export class CreateOrderCommand {
   private receiver: OrderService
   private orderData: any
 
@@ -20,6 +24,20 @@ export class CreateOrderCommand implements Command {
 
   execute() {
     this.receiver.createOrder(this.orderData)
+  }
+}
+
+export class CancelOrderCommand implements Command {
+  private receiver: OrderService
+  private orderId: string
+
+  constructor(receiver: OrderService, orderId: string) {
+    this.receiver = receiver
+    this.orderId = orderId
+  }
+
+  execute() {
+    this.receiver.cancelOrder(this.orderId)
   }
 }
 
