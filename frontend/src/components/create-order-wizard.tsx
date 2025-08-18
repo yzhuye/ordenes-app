@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { User, ShoppingCart, CreditCard, CheckCircle, Plus, Minus, ArrowRight, ArrowLeft } from "lucide-react"
+import { OrderService, CreateOrderCommand, CommandInvoker } from "./order-command"
 
 // --- Estado y Tipos ---
 interface OrderItem {
@@ -106,6 +107,23 @@ export function CreateOrderWizard() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [paymentMethod, setPaymentMethod] = useState("")
   const [discountCode, setDiscountCode] = useState("") // Nuevo estado para el código de descuento
+  const [orderCreated, setOrderCreated] = useState(false)
+  const orderService = useMemo(() => new OrderService(), [])
+  const invoker = useMemo(() => new CommandInvoker(), [])
+
+  const handleCreateOrder = () => {
+    const orderData = {
+      customer: customerData,
+      items: orderItems,
+      paymentMethod,
+      totals: orderTotals,
+      createdAt: new Date().toISOString(),
+    }
+    const command = new CreateOrderCommand(orderService, orderData)
+    invoker.run(command) 
+    setOrderCreated(true)
+    setCurrentStep(4)
+  }
 
   const availableProducts = [
     { id: "1", name: "Laptop Gaming", price: 1299.99 },
@@ -492,17 +510,24 @@ export function CreateOrderWizard() {
         <CardContent>{renderStepContent()}</CardContent>
       </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={prevStep} disabled={currentStep === 1} className="gap-2 bg-transparent cursor-pointer">
-          <ArrowLeft className="h-4 w-4" />
-          Anterior
-        </Button>
+    <div className="flex justify-between">
+      <Button variant="outline" onClick={prevStep} disabled={currentStep === 1} className="gap-2 bg-transparent cursor-pointer">
+        <ArrowLeft className="h-4 w-4" />
+        Anterior
+      </Button>
 
-        <Button onClick={nextStep} disabled={currentStep === 4} className="gap-2 cursor-pointer">
-          {currentStep === 3 ? "Crear Orden" : "Siguiente"}
+      {currentStep === 3 ? (
+        <Button onClick={handleCreateOrder} className="gap-2 cursor-pointer">
+          Crear Orden
           <ArrowRight className="h-4 w-4" />
         </Button>
-      </div>
+      ) : (
+        <Button onClick={nextStep} disabled={currentStep === 4} className="gap-2 cursor-pointer">
+          Siguiente
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
     </div>
   )
 }

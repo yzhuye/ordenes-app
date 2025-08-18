@@ -7,11 +7,26 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, MoreHorizontal, Eye, Edit, Trash2, Download } from "lucide-react"
+import { Search, Filter, Trash2, Download } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { OrderService, CancelOrderCommand, CommandInvoker } from "./order-command"
+
 
 export function OrderList() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const orderService = new OrderService()
+  const invoker = new CommandInvoker()
 
   const orders = [
     {
@@ -89,6 +104,12 @@ export function OrderList() {
     return matchesSearch && matchesStatus
   })
 
+  const handleCancelOrder = (orderId: string) => {
+    const command = new CancelOrderCommand(orderService, orderId)
+    invoker.run(command)
+    console.log("Historial:", invoker.getHistory())
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -162,27 +183,33 @@ export function OrderList() {
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell>{order.date}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2">
-                          <Eye className="h-4 w-4" />
-                          Ver Detalles
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
-                          <Edit className="h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          className="gap-2"
+                          disabled={order.status === "cancelled"} 
+                        >
                           <Trash2 className="h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </Button>
+                      </AlertDialogTrigger>
+                      {order.status !== "cancelled" && ( 
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Cancelar esta orden?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción no se puede deshacer. Se cancelará la orden <strong>{order.id}</strong>.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Volver</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleCancelOrder(order.id)}>
+                              Sí, cancelar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      )}
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
