@@ -25,11 +25,16 @@ model Order {
   zipCode         String      @db.VarChar(20)
   deliveryAddress String      @db.VarChar(255)
   notes           String?      @db.VarChar(200)
+  fee             Decimal     @db.Decimal(10, 2)
+  subtotal        Decimal     @db.Decimal(10, 2)  
   totalPrice      Decimal     @db.Decimal(10, 2)
   paymentMethod   PaymentMethod @default(CARD)
+  discountId      Int?
   isActive        Boolean     @default(true)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+
+  discount Discount? @relation(fields: [discountId], references: [id], onDelete: Restrict)
 
   items OrderItem[]
 
@@ -64,4 +69,18 @@ model OrderItem {
 
   @@unique([orderId, productId])
   @@map("order_items")
+}
+
+model Discount {
+  id         Int      @id @default(autoincrement())
+  code       String   @unique @db.VarChar(100)
+  discount   Decimal  @db.Decimal(10, 2)
+  validUntil DateTime? @db.Date
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("discounts")
 }
