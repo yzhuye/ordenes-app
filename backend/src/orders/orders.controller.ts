@@ -1,45 +1,89 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
-import { OrdersService } from './orders.service';
-import { OrdersCommandBus } from './commands/orders.command-bus';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderPrototypeService } from './prototypes/prototype.service';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post } from "@nestjs/common";
+import { OrdersCommandBus } from "./commands/orders.command-bus";
+import { OrderPrototypeService } from "./prototypes/prototype.service";
+import { CreateOrderDto } from "./dto/create-order.dto";
+import { DraftOrder } from "./prototypes/order.prototype";
 
 @Controller('orders')
 export class OrdersController {
   constructor(
-    private readonly ordersService: OrdersService,
     private readonly commandBus: OrdersCommandBus,
     private readonly prototypeService: OrderPrototypeService,
   ) {}
 
-  @Get()
-  list() {
-    return this.ordersService.findAll();
+  @Get()     
+  list() { 
+    return this.commandBus.listOrders(); 
+  }
+  
+  @Get(':id') 
+  findOne(@Param('id', ParseIntPipe) id: number) { 
+    return this.commandBus.getOrder(id); 
+  }
+  
+  @Post()    
+  create(@Body() dto: CreateOrderDto) { 
+    return this.commandBus.createOrder(dto); 
   }
 
-  @Post()
-  create(@Body() dto: CreateOrderDto) {
-    return this.commandBus.createOrder(dto);
+  @Delete(':id')
+  delete(@Param('id', ParseIntPipe) id: number) {
+    return this.commandBus.deleteOrder(id);
   }
 
-  // Duplicar: crea un borrador a partir de una orden existente (opcionalmente con overrides)
-  @Post(':id/duplicate')
-  async duplicate(
+  @Get(':id/reorder')
+  async createReorderDraft(@Param('id', ParseIntPipe) id: number): Promise<DraftOrder> {
+    const prototype = await this.prototypeService.buildFromOrder(id);
+    return prototype.clone({
+      notes: null,
+    });
+  }
+
+  // This endpoint allows customer to modify delivery address, add notes, change items, etc.
+  @Post(':id/reorder-with-changes')
+  async reorderWithChanges(
     @Param('id', ParseIntPipe) id: number,
-    @Body() overrides?: Partial<CreateOrderDto>,
-  ) {
-    const proto = await this.prototypeService.buildFromOrder(id);
-    const draft = proto.clone({
-      ...overrides,
-      // si quieres, limpia descuentos o fee por defecto:
-      // discountId: null, discountAmount: 0, fee: 0
-    });
+    @Body() changes: Partial<DraftOrder>
+  ): Promise<DraftOrder> {
+    const prototype = await this.prototypeService.buildFromOrder(id);
+    return prototype.clone(changes);
+  }
 
-    // Reutilizamos el caso de uso de creación
-    return this.commandBus.createOrder({
-      ...draft,
-      // adapta tipos si es necesario:
-      paymentMethod: draft.paymentMethod as any,
-    });
+  @Post(':id/reorder-now')
+  async reorderImmediately(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() changes?: Partial<DraftOrder>
+  ) {
+    const prototype = await this.prototypeService.buildFromOrder(id);
+    const reorderDraft = prototype.clone(changes || { notes: null });
+    
+    const createDto: CreateOrderDto = {
+      contactName: reorderDraft.contactName,
+      contactEmail: reorderDraft.contactEmail,
+      contactPhone: reorderDraft.contactPhone,
+      country: reorderDraft.country,
+      city: reorderDraft.city,
+      zipCode: reorderDraft.zipCode,
+      deliveryAddress: reorderDraft.deliveryAddress,
+      notes: reorderDraft.notes || undefined,
+      paymentMethod: reorderDraft.paymentMethod as any,
+      items: reorderDraft.items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity
+      })),
+      discountCode: reorderDraft.discountCode || undefined
+    };
+    
+    return this.commandBus.createOrder(createDto);
+  }
+
+  @Post('validate-products')
+  validateProducts(@Body() items: { productId: number; quantity: number }[]) {
+    return this.commandBus.validateProducts(items);
+  }
+
+  @Get('validate-discount/:code')
+  validateDiscount(@Param('code') code: string) {
+    return this.commandBus.validateDiscount(code);
   }
 }

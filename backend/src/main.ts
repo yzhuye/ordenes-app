@@ -1,4 +1,3 @@
-// src/main.ts
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -7,16 +6,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS
   app.enableCors({
     origin: ['http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
   });
 
-  // Validación global
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // Swagger (debe ir DESPUÉS de crear app)
   const config = new DocumentBuilder()
     .setTitle('Orders API')
     .setDescription('Endpoints del módulo de Órdenes')

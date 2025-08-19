@@ -1,5 +1,5 @@
 export type PricingInput = {
-  items: { quantity: number; price: number }[];
+  items: { productId: number; quantity: number; price: number }[];
   fee?: number;
   discountAmount?: number;
 };
