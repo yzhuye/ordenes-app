@@ -117,10 +117,6 @@ export function OrderList() {
           <h1 className="font-playfair text-3xl font-bold text-foreground">Lista de Órdenes</h1>
           <p className="text-muted-foreground">Gestiona y visualiza todas las órdenes del sistema</p>
         </div>
-        <Button className="gap-2">
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
       </div>
 
       <Card>
@@ -128,33 +124,7 @@ export function OrderList() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Órdenes ({filteredOrders.length})</CardTitle>
-              <CardDescription>Lista completa de órdenes con filtros y búsqueda</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Buscar órdenes..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
-                />
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 bg-transparent">
-                    <Filter className="h-4 w-4" />
-                    Filtrar
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => setStatusFilter("all")}>Todos los estados</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("pending")}>Pendientes</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("processing")}>Procesando</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("shipped")}>Enviados</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("delivered")}>Entregados</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <CardDescription>Lista completa de órdenes</CardDescription>
             </div>
           </div>
         </CardHeader>
