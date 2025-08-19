@@ -1,10 +1,16 @@
-import { PriceCalculator } from './price-calculator';
+import { PriceCalculator, PricingInput, PricingOutput } from './price-calculator';
 
 export class DiscountDecorator implements PriceCalculator {
   constructor(private readonly inner: PriceCalculator) {}
-  compute(input) {
+
+  compute(input: PricingInput): PricingOutput {
     const base = this.inner.compute(input);
     const discount = input.discountAmount ?? 0;
-    return { ...base, discount, total: base.total - discount };
+    const subtotalAfterDiscount = Math.max(0, base.subtotal - discount);
+    return { 
+      ...base, 
+      discount, 
+      total: subtotalAfterDiscount + base.fee 
+    };
   }
 }

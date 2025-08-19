@@ -1,17 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '@/prisma/prisma.service';
 import { OrderPrototype, DraftOrder } from './order.prototype';
 
 @Injectable()
 export class OrderPrototypeService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Builds a prototype from an existing order for reordering functionality.
+   */
   async buildFromOrder(orderId: number): Promise<OrderPrototype> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { 
+        items: true,
+        discount: true // Include discount to get the code
+      },
     });
-    if (!order) throw new NotFoundException('Order not found');
+    if (!order) throw new NotFoundException('Order not found for reorder');
 
     const draft: DraftOrder = {
       contactName: order.contactName,
@@ -26,7 +32,7 @@ export class OrderPrototypeService {
       fee: Number(order.fee),
       subtotal: Number(order.subtotal),
       totalPrice: Number(order.totalPrice),
-      discountId: order.discountId ?? null,
+      discountCode: order.discount?.code ?? null,
       items: order.items.map(i => ({
         productId: i.productId,
         quantity: i.quantity,
