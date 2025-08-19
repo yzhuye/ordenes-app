@@ -5,7 +5,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 export interface ValidatedDiscount {
   id: number;
   code: string;
-  amount: number; // Percentage value (0.1 = 10%)
+  amount: number;
   isValid: boolean;
 }
 
@@ -54,7 +54,7 @@ export class ValidateDiscountCommand implements Command<ValidatedDiscount | null
     return {
       id: discount.id,
       code: discount.code,
-      amount: Number(discount.discount), // Percentage (0.1 = 10%)
+      amount: Number(discount.discount),
       isValid: true
     };
   }

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Command } from './command';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
 export class DeleteOrderCommand implements Command<{ success: boolean; message: string }> {
@@ -10,7 +10,6 @@ export class DeleteOrderCommand implements Command<{ success: boolean; message: 
   ) {}
 
   async execute(): Promise<{ success: boolean; message: string }> {
-    // First check if the order exists
     const existingOrder = await this.prisma.order.findUnique({
       where: { id: this.orderId },
       select: {
@@ -29,7 +28,6 @@ export class DeleteOrderCommand implements Command<{ success: boolean; message: 
       throw new BadRequestException(`Order ${this.orderId} is already deleted`);
     }
 
-    // Perform soft delete by setting isActive to false
     await this.prisma.order.update({
       where: { id: this.orderId },
       data: {
