@@ -1,13 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, Trash2, Download } from "lucide-react"
+import { Trash2, Eye } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,94 +16,59 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { OrderService, CancelOrderCommand, CommandInvoker } from "./order-command"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { OrderService, DeleteOrderCommand, CommandInvoker } from "./order-command"
 
 
 export function OrderList() {
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const orderService = new OrderService()
   const invoker = new CommandInvoker()
 
-  const orders = [
-    {
-      id: "ORD-001",
-      customer: "María García",
-      email: "maria@email.com",
-      total: 299.99,
-      status: "pending",
-      date: "2024-01-15",
-      items: 3,
-    },
-    {
-      id: "ORD-002",
-      customer: "Juan Pérez",
-      email: "juan@email.com",
-      total: 156.5,
-      status: "shipped",
-      date: "2024-01-14",
-      items: 2,
-    },
-    {
-      id: "ORD-003",
-      customer: "Ana López",
-      email: "ana@email.com",
-      total: 89.99,
-      status: "delivered",
-      date: "2024-01-13",
-      items: 1,
-    },
-    {
-      id: "ORD-004",
-      customer: "Carlos Ruiz",
-      email: "carlos@email.com",
-      total: 445.0,
-      status: "processing",
-      date: "2024-01-12",
-      items: 5,
-    },
-    {
-      id: "ORD-005",
-      customer: "Laura Martín",
-      email: "laura@email.com",
-      total: 199.99,
-      status: "cancelled",
-      date: "2024-01-11",
-      items: 2,
-    },
-  ]
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      pending: "bg-secondary text-secondary-foreground",
-      processing: "bg-blue-100 text-blue-800",
-      shipped: "bg-accent text-accent-foreground",
-      delivered: "bg-green-100 text-green-800",
-      cancelled: "bg-destructive/10 text-destructive",
+  const fetchOrders = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("http://localhost:3000/orders")
+      const data = await res.json()
+      setOrders(data)
+    } catch (error) {
+      console.error("Error cargando órdenes:", error)
+    } finally {
+      setLoading(false)
     }
-
-    const labels = {
-      pending: "Pendiente",
-      processing: "Procesando",
-      shipped: "Enviado",
-      delivered: "Entregado",
-      cancelled: "Cancelado",
-    }
-
-    return <Badge className={variants[status as keyof typeof variants]}>{labels[status as keyof typeof labels]}</Badge>
   }
+
+  useEffect(() => {
+    fetchOrders()
+  }, [])
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+      (order.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (order.contactEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+
     const matchesStatus = statusFilter === "all" || order.status === statusFilter
+
     return matchesSearch && matchesStatus
   })
 
-  const handleCancelOrder = (orderId: string) => {
-    const command = new CancelOrderCommand(orderService, orderId)
-    invoker.run(command)
+  const handleDeleteOrder = async (orderId: string) => {
+    const command = new DeleteOrderCommand(orderService, orderId)
+    await invoker.run(command)
+    setOrders((prev) => prev.filter((order) => order.id !== orderId))
     console.log("Historial:", invoker.getHistory())
   }
 
@@ -137,52 +99,128 @@ export function OrderList() {
                 <TableHead>Email</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Total</TableHead>
-                <TableHead>Estado</TableHead>
                 <TableHead>Fecha</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>{order.customer}</TableCell>
-                  <TableCell className="text-muted-foreground">{order.email}</TableCell>
-                  <TableCell>{order.items}</TableCell>
-                  <TableCell className="font-semibold">${order.total.toFixed(2)}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell>{order.date}</TableCell>
-                  <TableCell className="text-right">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          className="gap-2"
-                          disabled={order.status === "cancelled"} 
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      {order.status !== "cancelled" && ( 
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center">Cargando órdenes...</TableCell>
+                </TableRow>
+              ) : (
+                filteredOrders.map((order) => (
+                  <TableRow key={order.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">#{order.id}</TableCell>
+                    <TableCell>{order.contactName}</TableCell>
+                    <TableCell className="text-muted-foreground">{order.contactEmail}</TableCell>
+                    <TableCell>{order.itemsCount}</TableCell>
+                    <TableCell className="font-semibold">${Number(order.totalPrice).toLocaleString()}</TableCell>
+                    <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right flex gap-2 justify-end">
+                      {/* Botón ver detalles */}
+                      <Sheet>
+                        <SheetTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-2 mr-2"
+                            onClick={() => setSelectedOrder(order)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            Ver
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent className="w-[500px] sm:w-[600px]  p-6">
+                          <SheetHeader>
+                            <SheetTitle className="text-2xl font-bold">Orden #{selectedOrder?.id}</SheetTitle>
+                            <SheetDescription className="text-muted-foreground">
+                              Información completa de la orden seleccionada
+                            </SheetDescription>
+                          </SheetHeader>
+
+                          {selectedOrder && (
+                            <div className="space-y-6 mt-6">
+                              {/* Cliente */}
+                              <div className="space-y-1">
+                                <h4 className="font-semibold text-lg">👤 Cliente</h4>
+                                <p className="font-medium">{selectedOrder.contactName}</p>
+                                <p className="text-sm text-muted-foreground">{selectedOrder.contactEmail}</p>
+                                <p className="text-sm">{selectedOrder.contactPhone}</p>
+                              </div>
+
+                              <hr className="border-border" />
+
+                              {/* Dirección */}
+                              <div className="space-y-1">
+                                <h4 className="font-semibold text-lg">📍 Dirección</h4>
+                                <p>{selectedOrder.deliveryAddress}</p>
+                                <p>{selectedOrder.city}, {selectedOrder.country}</p>
+                                <p>{selectedOrder.zipCode}</p>
+                              </div>
+
+                              <hr className="border-border" />
+
+                              {/* Pago */}
+                              <div className="space-y-2">
+                                <h4 className="font-semibold text-lg">💳 Pago</h4>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <span className="text-muted-foreground">Método:</span>
+                                  <span className="font-medium">{selectedOrder.paymentMethod}</span>
+
+                                  <span className="text-muted-foreground">Subtotal:</span>
+                                  <span>${Number(selectedOrder.subtotal).toLocaleString()}</span>
+
+                                  <span className="text-muted-foreground">Envío:</span>
+                                  <span>${Number(selectedOrder.fee).toLocaleString()}</span>
+
+                                  <span className="font-semibold text-lg">Total:</span>
+                                  <span className="font-bold text-primary text-lg">
+                                    ${Number(selectedOrder.totalPrice).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <hr className="border-border" />
+
+                              {/* Fecha */}
+                              <div>
+                                <h4 className="font-semibold text-lg">🗓 Fecha</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(selectedOrder.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </SheetContent>
+                      </Sheet>
+
+                      {/* Botón eliminar */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" className="gap-2" variant="destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>¿Cancelar esta orden?</AlertDialogTitle>
+                            <AlertDialogTitle>¿Eliminar esta orden?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Se cancelará la orden <strong>{order.id}</strong>.
+                              Esta acción no se puede deshacer. Se eliminará la orden <strong>#{order.id}</strong>.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Volver</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleCancelOrder(order.id)}>
-                              Sí, cancelar
+                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
+                              Sí, eliminar
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
-                      )}
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

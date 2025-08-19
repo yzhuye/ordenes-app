@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -103,6 +103,10 @@ export function CreateOrderWizard() {
     email: "",
     phone: "",
     address: "",
+    country: "",
+    city: "",
+    zipCode: "",
+    notes: "",
   })
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [paymentMethod, setPaymentMethod] = useState("")
@@ -111,27 +115,62 @@ export function CreateOrderWizard() {
   const orderService = useMemo(() => new OrderService(), [])
   const invoker = useMemo(() => new CommandInvoker(), [])
 
-  const handleCreateOrder = () => {
-    const orderData = {
-      customer: customerData,
-      items: orderItems,
-      paymentMethod,
-      totals: orderTotals,
-      createdAt: new Date().toISOString(),
+  const validateStep = (step: number) => {
+    switch (step) {
+      case 1: // Datos del cliente
+        return (
+          customerData.name.trim() !== "" &&
+          customerData.email.trim() !== "" &&
+          customerData.phone.trim() !== "" &&
+          customerData.address.trim() !== "" &&
+          customerData.country.trim() !== "" &&
+          customerData.city.trim() !== "" &&
+          customerData.zipCode.trim() !== ""
+        )
+      case 2: // Productos
+        return orderItems.length > 0
+      case 3: // Pago
+        return paymentMethod.trim() !== ""
+      default:
+        return true
     }
-    const command = new CreateOrderCommand(orderService, orderData)
-    invoker.run(command) 
-    setOrderCreated(true)
-    setCurrentStep(4)
   }
 
-  const availableProducts = [
-    { id: "1", name: "Laptop Gaming", price: 1299.99 },
-    { id: "2", name: "Mouse Inalámbrico", price: 49.99 },
-    { id: "3", name: "Teclado Mecánico", price: 129.99 },
-    { id: "4", name: "Monitor 4K", price: 399.99 },
-    { id: "5", name: "Auriculares", price: 79.99 },
-  ]
+  const handleCreateOrder = async () => {
+    let discountId: number | null = null
+    let discountAmount: number | null = null
+    if (discountCode.toUpperCase() === "DESCUENTO20") {
+      discountId = 1
+      discountAmount = 10000
+    }
+    const dto = {
+      contactName: customerData.name,
+      contactEmail: customerData.email,
+      contactPhone: customerData.phone,
+      country: customerData.country,
+      city: customerData.city,
+      zipCode: customerData.zipCode,
+      deliveryAddress: customerData.address,
+      paymentMethod,
+      fee: orderTotals.shipping,
+      discountId,
+      discountAmount,
+      items: orderItems.map((i) => ({
+        productId: Number(i.id),
+        quantity: i.quantity,
+        price: i.price,
+      })),
+    }
+
+    const command = new CreateOrderCommand(orderService, dto)
+    await invoker.run(command)
+    setOrderCreated(true)
+    setCurrentStep(4)
+    console.log("Historial de comandos:", invoker.getHistory())
+  }
+
+  const [availableProducts, setAvailableProducts] = useState<{ id: string; name: string; price: number }[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(true)
 
   const steps = [
     { number: 1, title: "Cliente", icon: User, description: "Información del cliente" },
@@ -139,6 +178,26 @@ export function CreateOrderWizard() {
     { number: 3, title: "Pago", icon: CreditCard, description: "Método de pago" },
     { number: 4, title: "Confirmación", icon: CheckCircle, description: "Revisar orden" },
   ]
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/products")
+        const data = await res.json()
+        const formatted = data.items.map((p: any) => ({
+          id: String(p.id),
+          name: p.name,
+          price: Number(p.price),
+        }))
+        setAvailableProducts(formatted)
+      } catch (error) {
+        console.error("Error cargando productos:", error)
+      } finally {
+        setLoadingProducts(false)
+      }
+    }
+    fetchProducts()
+  }, [])
 
   // Hook `useMemo` para construir y ejecutar la cadena de decoradores.
   // El cálculo solo se re-ejecuta si los items de la orden o el código de descuento cambian.
@@ -151,7 +210,7 @@ export function CreateOrderWizard() {
     const taxRate = 0.16
     const calculatorWithTax = new TaxDecorator(baseCalculator, taxRate)
     const subtotalWithTax = calculatorWithTax.calculate(orderItems)
-    
+
     // 3. Aplicamos el decorador de envío.
     const shippingFee = orderItems.length > 0 ? 15.00 : 0
     let calculatorWithShipping: PriceCalculator = new ShippingDecorator(calculatorWithTax, shippingFee)
@@ -235,6 +294,7 @@ export function CreateOrderWizard() {
                 />
               </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="pb-2" htmlFor="phone">Teléfono</Label>
@@ -242,7 +302,7 @@ export function CreateOrderWizard() {
                   id="phone"
                   value={customerData.phone}
                   onChange={(e) => setCustomerData({ ...customerData, phone: e.target.value })}
-                  placeholder="+1 234 567 8900"
+                  placeholder="+57 300 123 4567"
                 />
               </div>
               <div>
@@ -255,16 +315,47 @@ export function CreateOrderWizard() {
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="pb-2" htmlFor="country">País</Label>
+                <Input
+                  id="country"
+                  value={customerData.country}
+                  onChange={(e) => setCustomerData({ ...customerData, country: e.target.value })}
+                  placeholder="Colombia"
+                />
+              </div>
+              <div>
+                <Label className="pb-2" htmlFor="city">Ciudad</Label>
+                <Input
+                  id="city"
+                  value={customerData.city}
+                  onChange={(e) => setCustomerData({ ...customerData, city: e.target.value })}
+                  placeholder="Barranquilla"
+                />
+              </div>
+              <div>
+                <Label className="pb-2" htmlFor="zipCode">Código Postal</Label>
+                <Input
+                  id="zipCode"
+                  value={customerData.zipCode}
+                  onChange={(e) => setCustomerData({ ...customerData, zipCode: e.target.value })}
+                  placeholder="080001"
+                />
+              </div>
+            </div>
           </div>
         )
 
       case 2:
         return (
           <div className="space-y-6">
-            <div>
-              <h3 className="font-semibold text-lg mb-4">Productos Disponibles</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {availableProducts.map((product) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {loadingProducts ? (
+                <p>Cargando productos...</p>
+              ) : (
+                availableProducts.map((product) => (
                   <Card key={product.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <h4 className="font-medium">{product.name}</h4>
@@ -275,9 +366,10 @@ export function CreateOrderWizard() {
                       </Button>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                ))
+              )}
             </div>
+
 
             {orderItems.length > 0 && (
               <div>
@@ -325,11 +417,10 @@ export function CreateOrderWizard() {
                   <SelectValue placeholder="Selecciona un método de pago" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="credit">Tarjeta de Crédito</SelectItem>
-                  <SelectItem value="debit">Tarjeta de Débito</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
-                  <SelectItem value="transfer">Transferencia Bancaria</SelectItem>
-                  <SelectItem value="cash">Efectivo</SelectItem>
+                  <SelectItem value="CARD">Tarjeta de Crédito</SelectItem>
+                  <SelectItem value="DIGITAL_WALLET">PayPal</SelectItem>
+                  <SelectItem value="BANK_TRANSFER">Transferencia Bancaria</SelectItem>
+                  <SelectItem value="CASH">Efectivo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -351,7 +442,7 @@ export function CreateOrderWizard() {
                 </p>
               )}
             </div>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Resumen de Pago</CardTitle>
@@ -467,13 +558,12 @@ export function CreateOrderWizard() {
                     <div
                       className={`
                       w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors
-                      ${
-                        isActive
+                      ${isActive
                           ? "bg-primary text-primary-foreground border-primary"
                           : isCompleted
                             ? "bg-green-600 text-white border-green-600"
                             : "bg-muted text-muted-foreground border-border"
-                      }
+                        }
                     `}
                     >
                       <Icon className="h-5 w-5" />
@@ -510,24 +600,33 @@ export function CreateOrderWizard() {
         <CardContent>{renderStepContent()}</CardContent>
       </Card>
 
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={prevStep} disabled={currentStep === 1} className="gap-2 bg-transparent cursor-pointer">
-        <ArrowLeft className="h-4 w-4" />
-        Anterior
-      </Button>
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={prevStep} disabled={currentStep === 1} className="gap-2 bg-transparent cursor-pointer">
+          <ArrowLeft className="h-4 w-4" />
+          Anterior
+        </Button>
 
-      {currentStep === 3 ? (
-        <Button onClick={handleCreateOrder} className="gap-2 cursor-pointer">
-          Crear Orden
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      ) : (
-        <Button onClick={nextStep} disabled={currentStep === 4} className="gap-2 cursor-pointer">
-          Siguiente
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      )}
-    </div>
+        {currentStep === 3 ? (
+          <Button
+            onClick={handleCreateOrder}
+            className="gap-2 cursor-pointer"
+            disabled={!validateStep(currentStep)} // validar paso 3 también
+          >
+            Crear Orden
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            onClick={nextStep}
+            disabled={currentStep === 4 || !validateStep(currentStep)} // 🚨 se desactiva si falta algo
+            className="gap-2 cursor-pointer"
+          >
+            Siguiente
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+
+      </div>
     </div>
   )
 }
