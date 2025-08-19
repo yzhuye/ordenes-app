@@ -1,19 +1,48 @@
-// Interfaz Command
 export interface Command {
   execute(): void
 }
 
 export class OrderService {
-  createOrder(orderData: any) {
-    console.log("Orden creada:", orderData)
+  async createOrder(dto: any) {
+    try {
+      const response = await fetch("http://localhost:3000/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dto),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error al crear la orden: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log("Orden creada en backend:", data)
+      return data
+    } catch (error) {
+      console.error("Error al crear orden:", error)
+      throw error
+    }
   }
 
-  cancelOrder(orderId: string) {
-    console.log(`Orden ${orderId} cancelada`)
+  async deleteOrder(orderId: string) {
+    try {
+      const response = await fetch(`http://localhost:3000/orders/${orderId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error al eliminar orden: ${response.statusText}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error al eliminar orden:", error)
+      throw error
+    }
   }
 }
 
-export class CreateOrderCommand {
+export class CreateOrderCommand implements Command {
   private receiver: OrderService
   private orderData: any
 
@@ -22,12 +51,12 @@ export class CreateOrderCommand {
     this.orderData = orderData
   }
 
-  execute() {
-    this.receiver.createOrder(this.orderData)
+  async execute() {
+    return await this.receiver.createOrder(this.orderData)
   }
 }
 
-export class CancelOrderCommand implements Command {
+export class DeleteOrderCommand implements Command {
   private receiver: OrderService
   private orderId: string
 
@@ -36,10 +65,12 @@ export class CancelOrderCommand implements Command {
     this.orderId = orderId
   }
 
-  execute() {
-    this.receiver.cancelOrder(this.orderId)
+  async execute() {
+    return await this.receiver.deleteOrder(this.orderId)
   }
 }
+
+
 
 export class CommandInvoker {
   private history: Command[] = []

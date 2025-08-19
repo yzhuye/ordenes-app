@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ShoppingCart, Package, Truck, CheckCircle, TrendingUp, Clock, DollarSign, Users, Plus } from "lucide-react"
+import { ShoppingCart, Truck, CheckCircle, TrendingUp, Clock, Plus } from "lucide-react"
 import { NavLink } from "react-router-dom"
 
 export function OrderDashboard() {
